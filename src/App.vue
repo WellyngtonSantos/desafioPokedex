@@ -1,7 +1,7 @@
 <template>
   <div class="img">
     <img src="../src/assets/pokemon-logo.png" alt="logo" />
-    {{modalDados}}
+    <p class="d-none">{{evolution}}</p>
   </div>
   <div class="input-group mb-3 search">
     <input
@@ -103,17 +103,18 @@
       <button class="btn btn-primary pokeData" disabled>
         {{ selected_pokemon.stats.stat }}
       </button>
-      <template  v-for="(evolution_detail, index) in evolutions()">
-         <div
-          :key="`evolution-${index}`"
-          v-if="typeof evolution_detail == 'object'"
-        >
-        <div :pokemon="evolution_detail"></div>
+
+      <div
+        v-for="(evolution_detail, index) in evolutions()"
+        :key="`evolution-${index}`"
+      >
+        <div v-if="typeof evolution_detail == 'object'">
+          <div :pokemon="evolution_detail"></div>
         </div>
-        <div :key="`evolution-${index}`" v-else>
+        <div v-else>
           <h3 class="text-center">Level UP on {{ evolution_detail }}</h3>
         </div>
-      </template >
+      </div>
     </m-dialog>
   </div>
 </template>
@@ -150,31 +151,41 @@ export default {
       return pokemon.name.charAt(0).toUpperCase() + pokemon.name.slice(1);
     },
     show_pokemon(name) {
+      if (name) {
+        this.modalDados = true;
+      }
       axios
         .get(`https://pokeapi.co/api/v2/pokemon/${name}`)
         .then((response) => {
+          console.log(response.data);
+
           this.selected_pokemon = response.data;
-          this.get_level()
-          this.modalDados = true;
+          this.get_level();
         });
     },
     get_level() {
       axios
-        .get(`https://pokeapi.co/api/v2/pokemon-species/${this.selected_pokemon.id}`)
+        .get(
+          `https://pokeapi.co/api/v2/pokemon-species/${this.selected_pokemon.id}`
+        )
         .then((response) => {
           axios.get(response.data.evolution_chain.url).then((response) => {
             this.evolution = response.data.chain;
-            console.log(this.evolution.species.url)
+            console.log(this.evolution.species.url);
           });
         });
-    }, 
+    },
     evolutions() {
       let chain = [];
       let evolution = this.evolution;
-      console.log(this.evolution.species)
-      if (evolution.species) {
+      console.log(this.evolution.species);
+
+      try {
         chain.push(evolution.species);
+      } catch (error) {
+        console.log(error)
       }
+      
       while (evolution.species) {
         if (evolution.evolves_to.length > 0) {
           evolution = evolution.evolves_to[0];
