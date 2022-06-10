@@ -11,25 +11,24 @@
       placeholder="Pesquisar"
       v-model="search"
     />
-    <button
-      class="btn btn-success dropdown-toggle"
-      type="button"
-      data-bs-toggle="dropdown"
-      aria-expanded="false"
-    >
-      Dropdown
-    </button>
-    <ul class="dropdown-menu dropdown-menu-end">
-      <li><a class="dropdown-item" href="#">Action</a></li>
-      <li><a class="dropdown-item" href="#">Another action</a></li>
-      <li><a class="dropdown-item" href="#">Something else here</a></li>
-      <li><hr class="dropdown-divider" /></li>
-      <li><a class="dropdown-item" href="#">Separated link</a></li>
-    </ul>
   </div>
   <div>
-    <div class="card_content row g-3">
+    <div class="card_content row g-3" v-if="typeFilter == false">
       <div style="width: 22rem" v-for="pokemon in filtered" :key="pokemon.name">
+        <div class="card" @click="show_pokemon(pokemon.name)">
+          <img
+            :src="`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${get_id(
+              pokemon
+            )}.png`"
+            :alt="pokemon.name"
+            class="PokeImgCard"
+          />
+          <h2 class="card-title text-center">{{ get_name(pokemon) }}</h2>
+        </div>
+      </div>
+    </div>
+    <div class="card_content row g-3" v-else>
+      <div style="width: 22rem" v-for="pokemon in filtered" :key="pokemon.type">
         <div class="card" @click="show_pokemon(pokemon.name)">
           <img
             :src="`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${get_id(
@@ -71,7 +70,7 @@
         :key="type.slot"
         :type="type.type.name"
         class="btn btn-primary pokeData"
-        disabled
+        @click="typeFilter(selected_pokemon.type)"
       >
         {{ type.type.name }}
       </button>
@@ -112,9 +111,19 @@
           <div :pokemon="evolution_detail"></div>
         </div>
         <div v-else>
+          <img
+            :src="`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${selected_pokemon.id++}.png`"
+            :alt="selected_pokemon.name--"
+            class="PokeImgModal"
+          />
           <h3 class="text-center">Level UP on {{ evolution_detail }}</h3>
         </div>
       </div>
+      <img
+        :src="`https://raw.githubusercontent.com/PokeAPI/sprites/master/sprites/pokemon/${selected_pokemon.id--}.png`"
+        :alt="selected_pokemon.name--"
+        class="PokeImgModal"
+      />
     </m-dialog>
   </div>
 </template>
@@ -122,28 +131,39 @@
 <script>
 // import Paginate from "vuejs-paginate-next";
 import axios from "axios";
-
 // const page = ref(1);
 // const perPage = ref(5);
-
 export default {
   name: "App",
-
   data() {
     return {
       pokemons: [],
+      pokemonsLocal: [],
       search: "",
       modalDados: false,
       selected_pokemon: null,
       evolution: null,
+      typeFilter: false,
+      type: this.selected_pokemon,
     };
   },
   mounted() {
-    axios.get("https://pokeapi.co/api/v2/pokemon?limit=20").then((response) => {
-      this.pokemons = response.data.results;
-    });
+    this.verificaLocalStorage()
   },
   methods: {
+    verificaLocalStorage() {
+      if (localStorage.pokesDB == null) {
+      axios
+        .get("https://pokeapi.co/api/v2/pokemon?limit=1126")
+        .then((response) => {
+          this.pokemons = response.data.results;
+          this.savePokesDB();
+          console.log("busca na API")
+        });
+    } else {
+      this.getPokesDB();
+    }
+    },
     get_id(pokemon) {
       return pokemon.url.split("/")[6];
     },
@@ -163,6 +183,16 @@ export default {
           this.get_level();
         });
     },
+    savePokesDB() {
+      var pokemons = JSON.stringify(this.pokemons);
+      localStorage.setItem("pokesDB", pokemons);
+    },
+    getPokesDB() {
+      console.log("ok");
+      this.pokemons = localStorage.getItem("pokesDB")
+        ? JSON.parse(localStorage.getItem("pokesDB"))
+        : [];
+    },
     get_level() {
       axios
         .get(
@@ -171,21 +201,18 @@ export default {
         .then((response) => {
           axios.get(response.data.evolution_chain.url).then((response) => {
             this.evolution = response.data.chain;
-            console.log(this.evolution.species.url);
           });
         });
     },
     evolutions() {
       let chain = [];
       let evolution = this.evolution;
-      console.log(this.evolution.species);
-
       try {
         chain.push(evolution.species);
       } catch (error) {
-        console.log(error)
+        console.log(error);
       }
-      
+
       while (evolution.species) {
         if (evolution.evolves_to.length > 0) {
           evolution = evolution.evolves_to[0];
